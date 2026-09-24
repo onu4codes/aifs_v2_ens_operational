@@ -6,7 +6,7 @@
 *.log
 *.lock
 *.pkl
-*.npz
-*.grib
-*.npz
-*.grib
+# *.npz
+# *.grib
+# *.npz
+# *.grib

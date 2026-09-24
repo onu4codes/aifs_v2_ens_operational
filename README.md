@@ -42,12 +42,12 @@ aifs_v2_ens_operational/
 │   ├── run_aifs_ens.py             run by the job: the ensemble forecast
 │   └── postprocess.py           4. clip to the region, convert units, write NetCDF
 ├── EKR/
-│   ├── lsm.grib                 native N320 land-sea mask
+│   ├── lsm.grib                 native N320 land-sea mask (download from Hugging Face)
 │   └── mir_16_linear/           interpolation matrices
 │       ├── 9533e90f…fc83.npz       0.25° lat/lon -> N320   (used by preprocess_ic.py)
 │       └── 7f0be51c…d9bf.npz       N320 -> 0.25° lat/lon   (used by run_aifs_ens.py)
 ├── weights/
-│   └── aifs-ens-crps-2.0.ckpt   model checkpoint
+│   └── aifs-ens-crps-2.0.ckpt   model checkpoint (download from Hugging Face)
 ├── IC_data/YYYYMMDD/            downloaded GRIB files and input_state_YYYYMMDDT00_v2.pkl
 ├── Outputs/
 │   ├── raw/                     init_YYYYMMDDT00.zarr   global forecast (0.25°)
@@ -119,16 +119,48 @@ reports missing or conflicting dependencies.
 
 ### 1. Static files
 
-These are not produced by the pipeline and must be in place before the first run.
+These are not in the git repository (they are large or binary) and must be in place before the
+first run.
 
-| File | Where to get it |
-|---|---|
-| `weights/aifs-ens-crps-2.0.ckpt` | The `ecmwf/aifs-ens-2.0` repository on Hugging Face (Files tab). Save it under this name, or change the name in `utils/run_aifs_ens.py`. |
-| `EKR/lsm.grib` | Native N320 land-sea mask, as used in ECMWF's AIFS ENS v2 example notebook. Copy it from an existing installation. |
-| `EKR/mir_16_linear/*.npz` | The two earthkit-regrid interpolation matrices. Copy them from an existing installation, or generate them (see below). |
+| File | Size | Source |
+|---|---|---|
+| `weights/aifs-ens-crps-2.0.ckpt` | 2.55 GB | [ecmwf/aifs-ens-2.0](https://huggingface.co/ecmwf/aifs-ens-2.0) on Hugging Face |
+| `EKR/lsm.grib` | 1.6 MB | [ecmwf/aifs-ens-2.0](https://huggingface.co/ecmwf/aifs-ens-2.0) on Hugging Face |
+| `EKR/mir_16_linear/*.npz` | ~8 MB each | generated with earthkit-regrid (see below) |
 
-To generate the interpolation matrices (needs internet), run this in the environment. earthkit-regrid
-downloads the matrices into its cache on first use:
+**Model weights and land-sea mask.** Download both from the Hugging Face repository into the
+right folders. With the environment active, using the Hugging Face command-line tool `hf`
+(part of `huggingface_hub`; if `hf` is not found, run `pip install huggingface_hub` or use `wget`
+below):
+
+```bash
+cd /path/to/aifs_v2_ens_operational
+hf download ecmwf/aifs-ens-2.0 aifs-ens-crps-2.0.ckpt --local-dir weights
+hf download ecmwf/aifs-ens-2.0 lsm.grib               --local-dir EKR
+```
+
+or without it, directly with `wget`:
+
+```bash
+mkdir -p weights EKR
+wget -O weights/aifs-ens-crps-2.0.ckpt \
+    "https://huggingface.co/ecmwf/aifs-ens-2.0/resolve/main/aifs-ens-crps-2.0.ckpt?download=true"
+wget -O EKR/lsm.grib \
+    "https://huggingface.co/ecmwf/aifs-ens-2.0/resolve/main/lsm.grib?download=true"
+```
+
+No Hugging Face account is needed. Check the result with `ls -lh weights/ EKR/`: the checkpoint
+should be about 2.55 GB.
+
+The weights are published by ECMWF under **CC BY 4.0** (attribution required). Hugging Face marks
+the checkpoint as "unsafe" because it is a PyTorch pickle file, which is normal for PyTorch
+checkpoints. Only load checkpoints from this official ECMWF repository.
+
+If you use a different checkpoint name or location, set `CHECKPOINT_PATH` in
+`utils/run_aifs_ens.py` or the `AIFS_CHECKPOINT` environment variable.
+
+**Interpolation matrices.** Generate them with earthkit-regrid (needs internet). It downloads the
+matrices into its cache on first use:
 
 ```bash
 python -c "
@@ -136,11 +168,14 @@ import numpy as np, earthkit.regrid as ekr
 ekr.interpolate(np.zeros((721, 1440)), {'grid': (0.25, 0.25)}, {'grid': 'N320'})
 ekr.interpolate(np.zeros(542080), {'grid': 'N320'}, {'grid': (0.25, 0.25)})
 "
-find ~/.cache -name "9533e90f*.npz" -o -name "7f0be51c*.npz"
+mkdir -p EKR/mir_16_linear
+find ~/.cache -name "9533e90f*.npz" -exec cp {} EKR/mir_16_linear/ \;
+find ~/.cache -name "7f0be51c*.npz" -exec cp {} EKR/mir_16_linear/ \;
+ls EKR/mir_16_linear/
 ```
 
-Then copy both files into `EKR/mir_16_linear/`. The file names are hashes and must match the
-names used in the scripts.
+Both files must be in `EKR/mir_16_linear/`. Their names are hashes and must match the names used
+in the scripts. You can also copy them from an existing installation.
 
 ### 2. Settings to change for your system
 

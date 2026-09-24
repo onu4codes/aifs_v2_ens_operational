@@ -1,0 +1,12 @@
+*.zarr
+*.nc
+*.grib2
+*.ckpt
+*.out
+*.log
+*.lock
+*.pkl
+*.npz
+*.grib
+*.npz
+*.grib

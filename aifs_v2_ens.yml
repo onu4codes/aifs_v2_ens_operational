@@ -1,0 +1,56 @@
+# Conda environment for the AIFS ENS v2 operational pipeline.
+#
+# Install (3 steps; flash-attn cannot go in this file because it has to be built
+# against the torch that is already installed):
+#
+#   conda env create -f aifs_ens_v2.yml
+#   conda activate aifs_ens_v2
+#   pip install flash-attn==2.7.4.post1 --no-build-isolation
+#
+# flash-attn first looks for a prebuilt wheel matching the installed torch / CUDA /
+# Python and only compiles from source if none exists (that needs the CUDA toolkit,
+# nvcc, and can take a long time). Requires an NVIDIA GPU of the Ampere generation
+# or newer (A100, L40S, H100, ...).
+#
+# Check the installation:
+#   python -c "import torch, flash_attn, anemoi.inference; print(torch.__version__, torch.cuda.is_available())"
+#
+# Version policy:
+#   - Packages that decide how the model and its inputs behave are pinned exactly, following
+#     ECMWF's run_AIFS_ENS_v2.0 notebook and the versions tested in this pipeline.
+#   - The other packages the scripts use directly get version ranges, so each system gets
+#     versions that suit it.
+#   - Everything else (sub-dependencies, CUDA libraries, eccodes binaries, ...) is chosen
+#     by pip for the target system.
+#
+# torch==2.7.0 from PyPI is the CUDA 12.6 build on Linux and brings its own CUDA runtime
+# libraries; it needs an NVIDIA driver that supports CUDA 12.6.
+
+name: aifs_ens_v2
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      # scientific stack used by the pipeline scripts (ranges)
+      - numpy>=2,<3
+      - scipy>=1.11,<2
+      - pandas>=2.2,<4
+      - xarray>=2025.1
+      - zarr>=3,<4
+      - dask>=2024.1
+      - netcdf4>=1.6,<2
+      - requests>=2.31,<3
+
+      # deep learning (pinned)
+      - torch==2.7.0
+      - torch-geometric==2.7.0
+
+      # ECMWF / anemoi stack (pinned)
+      - anemoi-inference==0.8.3
+      - anemoi-models==0.11.2
+      - anemoi-utils==0.4.35.post3
+      - earthkit-data>=0.20,<1.0
+      - earthkit-regrid==0.5.1
+      - ecmwf-opendata==0.3.29
